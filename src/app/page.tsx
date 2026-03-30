@@ -1,101 +1,128 @@
-import Image from "next/image";
+"use client";
 
-export default function Home() {
+import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+export default function LandingPage() {
+  const [wallet, setWallet] = useState("");
+  const [focused, setFocused] = useState(false);
+  const router = useRouter();
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    router.push("/portfolio");
+  };
+
   return (
-    <div className="grid grid-rows-[20px_1fr_20px] items-center justify-items-center min-h-screen p-8 pb-20 gap-16 sm:p-20 font-[family-name:var(--font-geist-sans)]">
-      <main className="flex flex-col gap-8 row-start-2 items-center sm:items-start">
-        <Image
-          className="dark:invert"
-          src="https://nextjs.org/icons/next.svg"
-          alt="Next.js logo"
-          width={180}
-          height={38}
-          priority
+    <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
+      {/* Animated background orbs */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div
+          className="absolute w-[600px] h-[600px] rounded-full opacity-20 blur-[120px]"
+          style={{
+            background: "radial-gradient(circle, #00f0ff, transparent)",
+            top: "10%",
+            left: "20%",
+            animation: "float 8s ease-in-out infinite",
+          }}
         />
-        <ol className="list-inside list-decimal text-sm text-center sm:text-left font-[family-name:var(--font-geist-mono)]">
-          <li className="mb-2">
-            Get started by editing{" "}
-            <code className="bg-black/[.05] dark:bg-white/[.06] px-1 py-0.5 rounded font-semibold">
-              src/app/page.tsx
-            </code>
-            .
-          </li>
-          <li>Save and see your changes instantly.</li>
-        </ol>
+        <div
+          className="absolute w-[500px] h-[500px] rounded-full opacity-15 blur-[100px]"
+          style={{
+            background: "radial-gradient(circle, #bf00ff, transparent)",
+            bottom: "10%",
+            right: "15%",
+            animation: "float 10s ease-in-out infinite reverse",
+          }}
+        />
+        <div
+          className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[80px]"
+          style={{
+            background: "radial-gradient(circle, #ff6ec7, transparent)",
+            top: "50%",
+            left: "60%",
+            animation: "float 12s ease-in-out infinite 2s",
+          }}
+        />
+      </div>
 
-        <div className="flex gap-4 items-center flex-col sm:flex-row">
-          <a
-            className="rounded-full border border-solid border-transparent transition-colors flex items-center justify-center bg-foreground text-background gap-2 hover:bg-[#383838] dark:hover:bg-[#ccc] text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
+      {/* Grid lines */}
+      <div
+        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        style={{
+          backgroundImage:
+            "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
+          backgroundSize: "60px 60px",
+        }}
+      />
+
+      {/* Content */}
+      <div className="relative z-10 flex flex-col items-center gap-8 px-4">
+        {/* Logo */}
+        <div className="flex flex-col items-center gap-3">
+          <h1
+            className="text-6xl md:text-8xl font-black tracking-tighter"
+            style={{
+              background: "linear-gradient(135deg, #00f0ff, #bf00ff, #ff6ec7)",
+              WebkitBackgroundClip: "text",
+              WebkitTextFillColor: "transparent",
+              filter: "drop-shadow(0 0 30px rgba(0, 240, 255, 0.3))",
+            }}
           >
-            <Image
-              className="dark:invert"
-              src="https://nextjs.org/icons/vercel.svg"
-              alt="Vercel logomark"
-              width={20}
-              height={20}
-            />
-            Deploy now
-          </a>
-          <a
-            className="rounded-full border border-solid border-black/[.08] dark:border-white/[.145] transition-colors flex items-center justify-center hover:bg-[#f2f2f2] dark:hover:bg-[#1a1a1a] hover:border-transparent text-sm sm:text-base h-10 sm:h-12 px-4 sm:px-5 sm:min-w-44"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Read our docs
-          </a>
+            bagfolk
+          </h1>
+          <p className="text-white/40 text-lg md:text-xl tracking-wide">
+            your bags, but alive
+          </p>
         </div>
-      </main>
-      <footer className="row-start-3 flex gap-6 flex-wrap items-center justify-center">
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/file.svg"
-            alt="File icon"
-            width={16}
-            height={16}
-          />
-          Learn
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/window.svg"
-            alt="Window icon"
-            width={16}
-            height={16}
-          />
-          Examples
-        </a>
-        <a
-          className="flex items-center gap-2 hover:underline hover:underline-offset-4"
-          href="https://nextjs.org?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          <Image
-            aria-hidden
-            src="https://nextjs.org/icons/globe.svg"
-            alt="Globe icon"
-            width={16}
-            height={16}
-          />
-          Go to nextjs.org →
-        </a>
-      </footer>
+
+        {/* Wallet input */}
+        <form onSubmit={handleSubmit} className="w-full max-w-lg flex flex-col gap-4">
+          <div className="relative">
+            <input
+              type="text"
+              value={wallet}
+              onChange={(e) => setWallet(e.target.value)}
+              onFocus={() => setFocused(true)}
+              onBlur={() => setFocused(false)}
+              placeholder="paste wallet address..."
+              className="glow-input w-full px-6 py-4 text-lg"
+              style={{
+                boxShadow: focused
+                  ? "0 0 30px rgba(0, 240, 255, 0.2), inset 0 0 30px rgba(0, 240, 255, 0.03)"
+                  : "none",
+              }}
+            />
+            <div
+              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/20 pointer-events-none"
+            >
+              (any input works, it&apos;s mock data)
+            </div>
+          </div>
+          <button type="submit" className="glow-button px-6 py-4 text-lg font-semibold tracking-wide">
+            summon your bagfolk
+          </button>
+        </form>
+
+        {/* Floating characters preview */}
+        <div className="flex gap-6 mt-8 opacity-60">
+          {["🤑", "😴", "🐸", "🧘", "😭", "🤡"].map((emoji, i) => (
+            <div
+              key={i}
+              className="text-3xl"
+              style={{
+                animation: `float ${2 + i * 0.5}s ease-in-out infinite ${i * 0.3}s`,
+              }}
+            >
+              {emoji}
+            </div>
+          ))}
+        </div>
+
+        <p className="text-white/20 text-sm mt-4">
+          6 tokens &middot; 6 personalities &middot; infinite degeneracy
+        </p>
+      </div>
     </div>
   );
 }
