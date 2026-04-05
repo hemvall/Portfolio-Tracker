@@ -2,8 +2,8 @@ import type { Metadata } from "next";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "bagfolk - your bags, but alive",
-  description: "Watch your crypto portfolio come alive as cute little degenerates",
+  title: "BagTown - Your Wallets, Alive",
+  description: "Watch your crypto wallets come alive in a 3D village",
 };
 
 export default function RootLayout({

@@ -1,50 +1,166 @@
 "use client";
 
-import { MOCK_TOKENS, TOTAL_VALUE } from "@/lib/mockData";
+import { useVillageStore } from "@/lib/store";
+import { CHAIN_CONFIGS, WalletData } from "@/lib/types";
 
-export function PortfolioBar() {
-  const totalChange = MOCK_TOKENS.reduce(
-    (sum, t) => sum + t.change24h * (t.value / TOTAL_VALUE),
-    0
-  );
-  const changeColor = totalChange >= 0 ? "#39ff14" : "#ff4444";
+function WalletCard({ wallet, isSelected }: { wallet: WalletData; isSelected: boolean }) {
+  const setSelected = useVillageStore((s) => s.setSelectedWallet);
+  const totalValue = useVillageStore((s) => s.totalValue);
+  const cfg = CHAIN_CONFIGS[wallet.chain];
+  const isUp = wallet.change >= 0;
+  const pct = totalValue() > 0 ? ((wallet.value / totalValue()) * 100) : 0;
 
   return (
-    <div className="glass px-6 py-3 flex items-center gap-6 overflow-x-auto">
-      {/* Total */}
-      <div className="flex items-center gap-3 pr-4 border-r border-white/10">
-        <div>
-          <p className="text-white/40 text-[10px] uppercase tracking-widest">Portfolio</p>
-          <p className="text-white font-bold text-lg font-mono">
-            ${TOTAL_VALUE.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-          </p>
-        </div>
-        <span className="font-mono text-sm font-bold" style={{ color: changeColor }}>
-          {totalChange > 0 ? "+" : ""}
-          {totalChange.toFixed(1)}%
+    <button
+      onClick={() => setSelected(wallet)}
+      style={{
+        flex: "0 0 auto",
+        minWidth: 155,
+        background: isSelected
+          ? `linear-gradient(135deg, ${cfg.hex}18, ${cfg.hex}08)`
+          : "rgba(255,255,255,0.03)",
+        border: isSelected
+          ? `1.5px solid ${cfg.hex}55`
+          : "1px solid rgba(255,255,255,0.06)",
+        borderRadius: 12,
+        padding: "12px 16px",
+        cursor: "pointer",
+        textAlign: "left",
+        transition: "all 0.25s ease",
+        position: "relative",
+        overflow: "hidden",
+      }}
+      onMouseEnter={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.background = "rgba(255,255,255,0.06)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.12)";
+        }
+      }}
+      onMouseLeave={(e) => {
+        if (!isSelected) {
+          e.currentTarget.style.background = "rgba(255,255,255,0.03)";
+          e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+        }
+      }}
+    >
+      {/* Portfolio % bar at bottom */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: `${Math.max(pct, 2)}%`,
+          height: 2,
+          background: cfg.hex,
+          opacity: 0.5,
+          borderRadius: "0 2px 0 0",
+        }}
+      />
+
+      {/* Top row: name + chain */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, marginBottom: 6 }}>
+        <div
+          style={{
+            width: 8,
+            height: 8,
+            borderRadius: "50%",
+            background: cfg.hex,
+            boxShadow: `0 0 6px ${cfg.hex}66`,
+            flexShrink: 0,
+          }}
+        />
+        <span
+          style={{
+            fontFamily: "'Orbitron', monospace, sans-serif",
+            fontSize: 13,
+            fontWeight: 700,
+            color: "#fff",
+            letterSpacing: 1,
+          }}
+        >
+          {wallet.name}
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: "rgba(255,255,255,0.25)",
+            marginLeft: "auto",
+            fontFamily: "'Orbitron', monospace, sans-serif",
+            letterSpacing: 1,
+          }}
+        >
+          {wallet.chain.toUpperCase()}
         </span>
       </div>
 
-      {/* Individual tokens */}
-      {MOCK_TOKENS.map((token) => (
-        <div key={token.symbol} className="flex items-center gap-2 shrink-0">
-          <div
-            className="w-2 h-2 rounded-full"
-            style={{
-              background: token.color,
-              boxShadow: `0 0 6px ${token.color}`,
-            }}
+      {/* Value */}
+      <div
+        style={{
+          fontFamily: "'Orbitron', monospace, sans-serif",
+          fontSize: 17,
+          fontWeight: 900,
+          color: "#fff",
+          marginBottom: 3,
+        }}
+      >
+        ${wallet.value.toLocaleString()}
+      </div>
+
+      {/* Change + portfolio % */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <span
+          style={{
+            fontFamily: "'Orbitron', monospace, sans-serif",
+            fontSize: 12,
+            fontWeight: 700,
+            color: isUp ? "#00FF88" : "#FF3B5C",
+          }}
+        >
+          {isUp ? "\u25B2+" : "\u25BC"}{Math.abs(wallet.change)}%
+        </span>
+        <span
+          style={{
+            fontSize: 10,
+            color: "rgba(255,255,255,0.25)",
+            fontFamily: "'Orbitron', monospace, sans-serif",
+          }}
+        >
+          {pct.toFixed(1)}%
+        </span>
+      </div>
+    </button>
+  );
+}
+
+export function PortfolioBar() {
+  const wallets = useVillageStore((s) => s.wallets);
+  const selectedWallet = useVillageStore((s) => s.selectedWallet);
+
+  return (
+    <div
+      className="fixed bottom-0 left-0 right-0 z-50 pointer-events-auto"
+      style={{
+        background: "linear-gradient(to top, rgba(4,6,16,0.92) 0%, rgba(4,6,16,0.75) 80%, transparent 100%)",
+        padding: "16px 24px 18px",
+      }}
+    >
+      <div
+        style={{
+          display: "flex",
+          gap: 10,
+          overflowX: "auto",
+          paddingBottom: 4,
+          scrollbarWidth: "thin",
+        }}
+      >
+        {wallets.map((w) => (
+          <WalletCard
+            key={w.id}
+            wallet={w}
+            isSelected={selectedWallet?.id === w.id}
           />
-          <span className="text-white/70 text-xs font-bold">{token.symbol}</span>
-          <span
-            className="text-xs font-mono"
-            style={{ color: token.change24h >= 0 ? "#39ff14" : "#ff4444" }}
-          >
-            {token.change24h > 0 ? "+" : ""}
-            {token.change24h}%
-          </span>
-        </div>
-      ))}
+        ))}
+      </div>
     </div>
   );
 }

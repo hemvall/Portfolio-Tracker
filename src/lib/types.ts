@@ -1,54 +1,31 @@
-export type Personality = "chad" | "introvert" | "gremlin" | "zen" | "drama" | "goofball";
-export type Mood = "moon" | "pump" | "dump" | "crab";
-export type Action =
-  | "dancing"
-  | "sleeping"
-  | "farting"
-  | "fighting"
-  | "meditating"
-  | "crying"
-  | "flexing"
-  | "panicking"
-  | "vibing"
-  | "scheming"
-  | "shitposting"
-  | "staring";
-
-export interface TokenData {
-  symbol: string;
-  name: string;
-  price: number;
-  change24h: number;
-  holdings: number;
-  value: number;
-  color: string;
-  personality: Personality;
-  mood: Mood;
-}
-
-export interface CharacterState {
-  id: string;
-  token: TokenData;
-  position: [number, number, number];
-  targetPosition: [number, number, number];
-  currentAction: Action;
-  speechBubble: string | null;
-  speechTimer: number;
-  actionTimer: number;
+export interface ChainConfig {
+  color: number;
+  hex: string;
   scale: number;
+  label: string;
 }
 
-export interface ActivityLogEntry {
+export interface WalletData {
   id: string;
-  timestamp: number;
-  character: string;
-  color: string;
-  message: string;
+  chain: ChainType;
+  name: string;
+  address: string;
+  value: number;
+  change: number;
+  startX: number;
+  startZ: number;
+  desc: string;
+  mood: string;
+  moodBg: string;
+  moodColor: string;
 }
 
-export interface CharacterEquipment {
-  hat: string | null;
-  trail: string | null;
-  aura: string | null;
-  skin: string | null;
-}
+export type ChainType = "btc" | "eth" | "sol" | "meme" | "stable";
+
+export const CHAIN_CONFIGS: Record<ChainType, ChainConfig> = {
+  btc:    { color: 0xF7931A, hex: "#F7931A", scale: 1.5,  label: "The Patriarch" },
+  eth:    { color: 0x627EEA, hex: "#627EEA", scale: 1.15, label: "The Philosopher" },
+  sol:    { color: 0x9945FF, hex: "#9945FF", scale: 1.0,  label: "The Sprinter" },
+  meme:   { color: 0xFFD700, hex: "#FFD700", scale: 0.82, label: "The Village Fool" },
+  stable: { color: 0x26A17A, hex: "#26A17A", scale: 1.05, label: "The Boring One" },
+};

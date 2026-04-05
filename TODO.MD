@@ -1,0 +1,5 @@
+  1. Store - Add selectedWallet for click-to-lock, characterPositions for camera tracking
+  2. Characters - Click to select, glowing ring under selected, report positions to store
+  3. CameraRig - Smoothly zoom/focus on selected character                                                                                                                                                                                     4. New InfoPanel - Large, pinned detail panel on click (replaces tooltip for selected)
+  5. New PortfolioBar - Bottom HUD showing all wallets with clear values                                                                                                                                                                       6. Topbar - Bigger text, clearer info
+  7. Name tags - Larger, more readable value text

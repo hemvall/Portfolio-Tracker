@@ -1,12 +1,23 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 
 export default function LandingPage() {
   const [wallet, setWallet] = useState("");
-  const [focused, setFocused] = useState(false);
   const router = useRouter();
+  const cursorRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const move = (e: MouseEvent) => {
+      if (cursorRef.current) {
+        cursorRef.current.style.left = e.clientX + "px";
+        cursorRef.current.style.top = e.clientY + "px";
+      }
+    };
+    window.addEventListener("mousemove", move);
+    return () => window.removeEventListener("mousemove", move);
+  }, []);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -15,40 +26,56 @@ export default function LandingPage() {
 
   return (
     <div className="relative min-h-screen flex flex-col items-center justify-center overflow-hidden">
-      {/* Animated background orbs */}
+      {/* Custom cursor */}
+      <div
+        ref={cursorRef}
+        className="fixed w-[14px] h-[14px] pointer-events-none z-[9999]"
+        style={{ transform: "translate(-50%, -50%)" }}
+      >
+        <div
+          className="absolute inset-0 rounded-full"
+          style={{ border: "1.5px solid rgba(255,255,255,0.5)" }}
+        />
+        <div
+          className="absolute top-1/2 left-1/2 w-[3px] h-[3px] bg-white rounded-full"
+          style={{ transform: "translate(-50%, -50%)" }}
+        />
+      </div>
+
+      {/* Scanlines */}
+      <div
+        className="fixed inset-0 pointer-events-none z-[100]"
+        style={{
+          background:
+            "repeating-linear-gradient(0deg, transparent, transparent 3px, rgba(0,0,0,0.035) 3px, rgba(0,0,0,0.035) 6px)",
+        }}
+      />
+
+      {/* Ambient glow orbs */}
       <div className="absolute inset-0 overflow-hidden pointer-events-none">
         <div
-          className="absolute w-[600px] h-[600px] rounded-full opacity-20 blur-[120px]"
+          className="absolute w-[500px] h-[500px] rounded-full opacity-15 blur-[120px]"
           style={{
-            background: "radial-gradient(circle, #00f0ff, transparent)",
+            background: "radial-gradient(circle, #627EEA, transparent)",
             top: "10%",
-            left: "20%",
+            left: "25%",
             animation: "float 8s ease-in-out infinite",
           }}
         />
         <div
-          className="absolute w-[500px] h-[500px] rounded-full opacity-15 blur-[100px]"
+          className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[100px]"
           style={{
-            background: "radial-gradient(circle, #bf00ff, transparent)",
-            bottom: "10%",
-            right: "15%",
+            background: "radial-gradient(circle, #9945FF, transparent)",
+            bottom: "15%",
+            right: "20%",
             animation: "float 10s ease-in-out infinite reverse",
-          }}
-        />
-        <div
-          className="absolute w-[400px] h-[400px] rounded-full opacity-10 blur-[80px]"
-          style={{
-            background: "radial-gradient(circle, #ff6ec7, transparent)",
-            top: "50%",
-            left: "60%",
-            animation: "float 12s ease-in-out infinite 2s",
           }}
         />
       </div>
 
-      {/* Grid lines */}
+      {/* Grid overlay */}
       <div
-        className="absolute inset-0 opacity-[0.03] pointer-events-none"
+        className="absolute inset-0 opacity-[0.02] pointer-events-none"
         style={{
           backgroundImage:
             "linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px), linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)",
@@ -61,67 +88,98 @@ export default function LandingPage() {
         {/* Logo */}
         <div className="flex flex-col items-center gap-3">
           <h1
-            className="text-6xl md:text-8xl font-black tracking-tighter"
             style={{
-              background: "linear-gradient(135deg, #00f0ff, #bf00ff, #ff6ec7)",
-              WebkitBackgroundClip: "text",
-              WebkitTextFillColor: "transparent",
-              filter: "drop-shadow(0 0 30px rgba(0, 240, 255, 0.3))",
+              fontFamily: "'Orbitron', monospace, sans-serif",
+              fontSize: "clamp(36px, 8vw, 72px)",
+              fontWeight: 900,
+              letterSpacing: 4,
             }}
           >
-            bagfolk
+            BAG<span style={{ color: "#627EEA" }}>TOWN</span>
           </h1>
-          <p className="text-white/40 text-lg md:text-xl tracking-wide">
-            your bags, but alive
+          <p
+            style={{
+              fontSize: 12,
+              color: "rgba(255,255,255,0.3)",
+              letterSpacing: 6,
+              textTransform: "uppercase",
+            }}
+          >
+            Your Wallets, Alive
           </p>
         </div>
 
         {/* Wallet input */}
-        <form onSubmit={handleSubmit} className="w-full max-w-lg flex flex-col gap-4">
-          <div className="relative">
+        <form onSubmit={handleSubmit} className="w-full max-w-md flex flex-col gap-4">
+          <div style={{ marginBottom: 4 }}>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 3,
+                color: "rgba(255,255,255,0.35)",
+                marginBottom: 6,
+                fontFamily: "'Orbitron', monospace, sans-serif",
+              }}
+            >
+              WALLET ADDRESS
+            </div>
             <input
               type="text"
               value={wallet}
               onChange={(e) => setWallet(e.target.value)}
-              onFocus={() => setFocused(true)}
-              onBlur={() => setFocused(false)}
-              placeholder="paste wallet address..."
-              className="glow-input w-full px-6 py-4 text-lg"
-              style={{
-                boxShadow: focused
-                  ? "0 0 30px rgba(0, 240, 255, 0.2), inset 0 0 30px rgba(0, 240, 255, 0.03)"
-                  : "none",
-              }}
+              placeholder="0x... or paste any address"
+              className="glow-input w-full"
+              style={{ padding: "12px 14px", fontSize: 13 }}
             />
-            <div
-              className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-white/20 pointer-events-none"
-            >
-              (any input works, it&apos;s mock data)
-            </div>
           </div>
-          <button type="submit" className="glow-button px-6 py-4 text-lg font-semibold tracking-wide">
-            summon your bagfolk
+          <button
+            type="submit"
+            className="glow-button w-full"
+            style={{ padding: "14px", fontSize: 11 }}
+          >
+            ENTER THE VILLAGE &rarr;
           </button>
+          <p
+            style={{
+              fontSize: 10,
+              color: "rgba(255,255,255,0.2)",
+              textAlign: "center",
+              letterSpacing: 1,
+            }}
+          >
+            Any input works &mdash; demo data populates the village
+          </p>
         </form>
 
-        {/* Floating characters preview */}
-        <div className="flex gap-6 mt-8 opacity-60">
-          {["🤑", "😴", "🐸", "🧘", "😭", "🤡"].map((emoji, i) => (
+        {/* Character previews */}
+        <div className="flex gap-8 mt-6 opacity-50">
+          {[
+            { emoji: "\u{1F451}", label: "BTC", color: "#F7931A" },
+            { emoji: "\u{1F9D0}", label: "ETH", color: "#627EEA" },
+            { emoji: "\u26A1", label: "SOL", color: "#9945FF" },
+            { emoji: "\u{1F92A}", label: "MEME", color: "#FFD700" },
+            { emoji: "\u{1F634}", label: "USDC", color: "#26A17A" },
+          ].map((c, i) => (
             <div
               key={i}
-              className="text-3xl"
-              style={{
-                animation: `float ${2 + i * 0.5}s ease-in-out infinite ${i * 0.3}s`,
-              }}
+              className="flex flex-col items-center gap-1"
+              style={{ animation: `float ${2 + i * 0.4}s ease-in-out infinite ${i * 0.2}s` }}
             >
-              {emoji}
+              <span style={{ fontSize: 24 }}>{c.emoji}</span>
+              <span
+                style={{
+                  fontSize: 8,
+                  fontFamily: "'Orbitron', monospace, sans-serif",
+                  letterSpacing: 2,
+                  color: c.color,
+                  opacity: 0.7,
+                }}
+              >
+                {c.label}
+              </span>
             </div>
           ))}
         </div>
-
-        <p className="text-white/20 text-sm mt-4">
-          6 tokens &middot; 6 personalities &middot; infinite degeneracy
-        </p>
       </div>
     </div>
   );
