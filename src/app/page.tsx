@@ -2,11 +2,32 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { Blockchain, BLOCKCHAIN_OPTIONS } from "@/lib/types";
+import { useVillageStore } from "@/lib/store";
 
 export default function LandingPage() {
   const [wallet, setWallet] = useState("");
+  const [nickname, setNickname] = useState("");
+  const [blockchain, setBlockchain] = useState<Blockchain>("ethereum");
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
   const router = useRouter();
   const cursorRef = useRef<HTMLDivElement>(null);
+  const addAnalyzedWallet = useVillageStore((s) => s.addAnalyzedWallet);
+  const hydrate = useVillageStore((s) => s.hydrateFromStorage);
+  const wallets = useVillageStore((s) => s.wallets);
+  const hydrated = useVillageStore((s) => s.hydrated);
+
+  // Hydrate from localStorage and redirect if wallets already exist
+  useEffect(() => {
+    hydrate();
+  }, [hydrate]);
+
+  useEffect(() => {
+    if (hydrated && wallets.length > 0) {
+      router.replace("/portfolio");
+    }
+  }, [hydrated, wallets.length, router]);
 
   useEffect(() => {
     const move = (e: MouseEvent) => {
@@ -19,9 +40,42 @@ export default function LandingPage() {
     return () => window.removeEventListener("mousemove", move);
   }, []);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    router.push("/portfolio");
+    if (!wallet.trim()) {
+      setError("Enter a wallet address");
+      return;
+    }
+
+    setLoading(true);
+    setError("");
+
+    try {
+      const res = await fetch("/api/wallet/analyze", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ address: wallet.trim(), blockchain }),
+      });
+
+      if (!res.ok) throw new Error("Analysis failed");
+
+      const data = await res.json();
+
+      addAnalyzedWallet({
+        address: wallet.trim(),
+        nickname: nickname.trim() || "",
+        blockchain,
+        totalValue: data.totalValue,
+        change24h: data.change24h,
+        holdings: data.holdings,
+        personality: data.personality,
+      });
+
+      router.push("/portfolio");
+    } catch {
+      setError("Failed to analyze wallet. Try again.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,9 +163,44 @@ export default function LandingPage() {
           </p>
         </div>
 
-        {/* Wallet input */}
+        {/* Wallet input form */}
         <form onSubmit={handleSubmit} className="w-full max-w-md flex flex-col gap-4">
-          <div style={{ marginBottom: 4 }}>
+          {/* Blockchain dropdown */}
+          <div>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 3,
+                color: "rgba(255,255,255,0.35)",
+                marginBottom: 6,
+                fontFamily: "'Orbitron', monospace, sans-serif",
+              }}
+            >
+              BLOCKCHAIN
+            </div>
+            <select
+              value={blockchain}
+              onChange={(e) => setBlockchain(e.target.value as Blockchain)}
+              className="glow-input w-full"
+              style={{
+                padding: "12px 14px",
+                fontSize: 13,
+                appearance: "none",
+                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.3)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
+                backgroundRepeat: "no-repeat",
+                backgroundPosition: "right 14px center",
+              }}
+            >
+              {BLOCKCHAIN_OPTIONS.map((opt) => (
+                <option key={opt.value} value={opt.value}>
+                  {opt.icon} {opt.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Wallet address */}
+          <div>
             <div
               style={{
                 fontSize: 9,
@@ -126,19 +215,68 @@ export default function LandingPage() {
             <input
               type="text"
               value={wallet}
-              onChange={(e) => setWallet(e.target.value)}
+              onChange={(e) => { setWallet(e.target.value); setError(""); }}
               placeholder="0x... or paste any address"
               className="glow-input w-full"
               style={{ padding: "12px 14px", fontSize: 13 }}
             />
           </div>
+
+          {/* Nickname */}
+          <div>
+            <div
+              style={{
+                fontSize: 9,
+                letterSpacing: 3,
+                color: "rgba(255,255,255,0.35)",
+                marginBottom: 6,
+                fontFamily: "'Orbitron', monospace, sans-serif",
+              }}
+            >
+              NICKNAME <span style={{ opacity: 0.5 }}>(OPTIONAL)</span>
+            </div>
+            <input
+              type="text"
+              value={nickname}
+              onChange={(e) => setNickname(e.target.value)}
+              placeholder="My Main Wallet"
+              className="glow-input w-full"
+              style={{ padding: "12px 14px", fontSize: 13 }}
+            />
+          </div>
+
+          {/* Error */}
+          {error && (
+            <p style={{ fontSize: 11, color: "#F87171", textAlign: "center" }}>{error}</p>
+          )}
+
+          {/* Submit */}
           <button
             type="submit"
             className="glow-button w-full"
-            style={{ padding: "14px", fontSize: 11 }}
+            style={{ padding: "14px", fontSize: 11, position: "relative" }}
+            disabled={loading}
           >
-            ENTER THE VILLAGE &rarr;
+            {loading ? (
+              <span style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                <span
+                  style={{
+                    width: 14,
+                    height: 14,
+                    border: "2px solid rgba(255,255,255,0.3)",
+                    borderTopColor: "#fff",
+                    borderRadius: "50%",
+                    display: "inline-block",
+                    animation: "spin 0.6s linear infinite",
+                  }}
+                />
+                ANALYZING WALLET...
+              </span>
+            ) : (
+              <>ENTER THE VILLAGE &rarr;</>
+            )}
           </button>
+
           <p
             style={{
               fontSize: 10,
@@ -147,18 +285,18 @@ export default function LandingPage() {
               letterSpacing: 1,
             }}
           >
-            Any input works &mdash; demo data populates the village
+            Wallet is analyzed &amp; a personality is assigned upon entry
           </p>
         </form>
 
         {/* Character previews */}
         <div className="flex gap-8 mt-6 opacity-50">
           {[
-            { emoji: "\u{1F451}", label: "BTC", color: "#F7931A" },
-            { emoji: "\u{1F9D0}", label: "ETH", color: "#627EEA" },
-            { emoji: "\u26A1", label: "SOL", color: "#9945FF" },
-            { emoji: "\u{1F92A}", label: "MEME", color: "#FFD700" },
-            { emoji: "\u{1F634}", label: "USDC", color: "#26A17A" },
+            { emoji: "👑", label: "BTC", color: "#F7931A" },
+            { emoji: "🧐", label: "ETH", color: "#627EEA" },
+            { emoji: "⚡", label: "SOL", color: "#9945FF" },
+            { emoji: "🤪", label: "MEME", color: "#FFD700" },
+            { emoji: "😴", label: "USDC", color: "#26A17A" },
           ].map((c, i) => (
             <div
               key={i}
