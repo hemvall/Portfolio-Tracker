@@ -47,17 +47,29 @@ export type Blockchain =
   | "tron"
   | "sui";
 
-export const BLOCKCHAIN_OPTIONS: { value: Blockchain; label: string; icon: string }[] = [
-  { value: "ethereum",  label: "Ethereum",   icon: "Ξ" },
-  { value: "solana",    label: "Solana",     icon: "◎" },
-  { value: "bitcoin",   label: "Bitcoin",    icon: "₿" },
-  { value: "bnb",       label: "BNB Chain",  icon: "⬡" },
-  { value: "polygon",   label: "Polygon",    icon: "⬡" },
-  { value: "avalanche", label: "Avalanche",  icon: "▲" },
-  { value: "base",      label: "Base",       icon: "🔵" },
-  { value: "arbitrum",  label: "Arbitrum",   icon: "🔷" },
-  { value: "tron",      label: "Tron",       icon: "◆" },
-  { value: "sui",       label: "Sui",        icon: "💧" },
+/**
+ * Real blockchain logos served from the Trust Wallet assets CDN via jsdelivr.
+ * Source: https://github.com/trustwallet/assets — tiny PNGs (~5 KB), CDN-cached.
+ * The `icon` field is kept as a unicode fallback for places that can't render <img>.
+ */
+const TW_ASSETS = "https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains";
+
+export const BLOCKCHAIN_OPTIONS: {
+  value: Blockchain;
+  label: string;
+  icon: string;
+  logoUrl: string;
+}[] = [
+  { value: "ethereum",  label: "Ethereum",   icon: "Ξ",  logoUrl: `${TW_ASSETS}/ethereum/info/logo.png` },
+  { value: "solana",    label: "Solana",     icon: "◎",  logoUrl: `${TW_ASSETS}/solana/info/logo.png` },
+  { value: "bitcoin",   label: "Bitcoin",    icon: "₿",  logoUrl: `${TW_ASSETS}/bitcoin/info/logo.png` },
+  { value: "bnb",       label: "BNB Chain",  icon: "⬡",  logoUrl: `${TW_ASSETS}/smartchain/info/logo.png` },
+  { value: "polygon",   label: "Polygon",    icon: "⬡",  logoUrl: `${TW_ASSETS}/polygon/info/logo.png` },
+  { value: "avalanche", label: "Avalanche",  icon: "▲",  logoUrl: `${TW_ASSETS}/avalanchec/info/logo.png` },
+  { value: "base",      label: "Base",       icon: "🔵", logoUrl: `${TW_ASSETS}/base/info/logo.png` },
+  { value: "arbitrum",  label: "Arbitrum",   icon: "🔷", logoUrl: `${TW_ASSETS}/arbitrum/info/logo.png` },
+  { value: "tron",      label: "Tron",       icon: "◆",  logoUrl: `${TW_ASSETS}/tron/info/logo.png` },
+  { value: "sui",       label: "Sui",        icon: "💧", logoUrl: `${TW_ASSETS}/sui/info/logo.png` },
 ];
 
 /** Map a blockchain to the character behavior type */

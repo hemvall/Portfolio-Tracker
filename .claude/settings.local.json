@@ -2,7 +2,11 @@
   "permissions": {
     "allow": [
       "Bash(npm install:*)",
-      "Bash(npx next:*)"
+      "Bash(npx next:*)",
+      "Bash(npx tsc:*)",
+      "Bash(curl -s \"https://www.whitenode.co/api/market/v1/brc20/ticker/LOL\")",
+      "Bash(curl -s -o /dev/null -w \"%{http_code}\\\\n\" \"https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/polygon/info/logo.png\")",
+      "Bash(curl -s -o /dev/null -w \"%{content_type} | %{size_download} bytes\\\\n\" \"https://cdn.jsdelivr.net/gh/trustwallet/assets@master/blockchains/bitcoin/info/logo.png\")"
     ]
   }
 }

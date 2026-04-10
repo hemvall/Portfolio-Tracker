@@ -2,8 +2,9 @@
 
 import { useState } from "react";
 import { useVillageStore } from "@/lib/store";
-import { Blockchain, BLOCKCHAIN_OPTIONS } from "@/lib/types";
+import { Blockchain } from "@/lib/types";
 import { X, Loader2 } from "lucide-react";
+import { ChainDropdown } from "./ChainDropdown";
 
 const ACCENT = "#A882FF";
 
@@ -71,11 +72,11 @@ export function AddWalletModal({ onClose }: { onClose: () => void }) {
   };
 
   const focusHandlers = {
-    onFocus: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    onFocus: (e: React.FocusEvent<HTMLInputElement>) => {
       e.currentTarget.style.borderColor = `${ACCENT}40`;
       e.currentTarget.style.boxShadow = `0 0 16px ${ACCENT}10`;
     },
-    onBlur: (e: React.FocusEvent<HTMLInputElement | HTMLSelectElement>) => {
+    onBlur: (e: React.FocusEvent<HTMLInputElement>) => {
       e.currentTarget.style.borderColor = "rgba(255,255,255,0.07)";
       e.currentTarget.style.boxShadow = "none";
     },
@@ -115,24 +116,7 @@ export function AddWalletModal({ onClose }: { onClose: () => void }) {
 
         <div style={{ marginBottom: 14 }}>
           <div className="hud-label" style={{ marginBottom: 6 }}>BLOCKCHAIN</div>
-          <select
-            style={{
-              ...inputStyle,
-              appearance: "none",
-              backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.3)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
-              backgroundRepeat: "no-repeat",
-              backgroundPosition: "right 14px center",
-            }}
-            value={blockchain}
-            onChange={(e) => setBlockchain(e.target.value as Blockchain)}
-            {...focusHandlers}
-          >
-            {BLOCKCHAIN_OPTIONS.map((opt) => (
-              <option key={opt.value} value={opt.value}>
-                {opt.icon} {opt.label}
-              </option>
-            ))}
-          </select>
+          <ChainDropdown value={blockchain} onChange={setBlockchain} />
         </div>
 
         <div style={{ marginBottom: 14 }}>

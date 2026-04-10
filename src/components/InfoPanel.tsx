@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useState } from "react";
 import { useVillageStore } from "@/lib/store";
 import {
   CHAIN_CONFIGS,
@@ -8,13 +9,36 @@ import {
   AssetCategory,
   BLOCKCHAIN_OPTIONS,
 } from "@/lib/types";
-import { X, ArrowUpRight, ArrowDownRight, Link, Layers, Sparkles } from "lucide-react";
+import {
+  X,
+  ArrowUpRight,
+  ArrowDownRight,
+  Link,
+  Layers,
+  Sparkles,
+  Trash2,
+} from "lucide-react";
 
 const ACCENT = "#A882FF";
+const DANGER = "#F87171";
 
 export function InfoPanel() {
   const wallet = useVillageStore((s) => s.selectedWallet);
   const deselect = useVillageStore((s) => s.setSelectedWallet);
+  const removeWallet = useVillageStore((s) => s.removeWallet);
+  const [confirmDelete, setConfirmDelete] = useState(false);
+
+  // Reset the confirm state 3s after it's armed, so it doesn't stay hot forever.
+  useEffect(() => {
+    if (!confirmDelete) return;
+    const t = setTimeout(() => setConfirmDelete(false), 3000);
+    return () => clearTimeout(t);
+  }, [confirmDelete]);
+
+  // Reset confirm state when the selected wallet changes.
+  useEffect(() => {
+    setConfirmDelete(false);
+  }, [wallet?.id]);
 
   if (!wallet) return null;
 
@@ -464,6 +488,54 @@ export function InfoPanel() {
       >
         {wallet.mood}
       </div>
+
+      {/* Delete wallet — two-click confirm */}
+      <button
+        type="button"
+        onClick={() => {
+          if (!confirmDelete) {
+            setConfirmDelete(true);
+            return;
+          }
+          const id = wallet.id;
+          setConfirmDelete(false);
+          deselect(null);
+          removeWallet(id);
+        }}
+        style={{
+          marginTop: 14,
+          width: "100%",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 7,
+          padding: "10px 14px",
+          borderRadius: 10,
+          fontSize: 12,
+          fontWeight: 600,
+          letterSpacing: 0.3,
+          cursor: "pointer",
+          background: confirmDelete ? `${DANGER}18` : "rgba(255,255,255,0.02)",
+          border: `1px solid ${confirmDelete ? `${DANGER}55` : "rgba(255,255,255,0.06)"}`,
+          color: confirmDelete ? DANGER : "rgba(255,255,255,0.4)",
+          transition: "background 0.2s, border-color 0.2s, color 0.2s",
+        }}
+        onMouseEnter={(e) => {
+          if (!confirmDelete) {
+            e.currentTarget.style.color = DANGER;
+            e.currentTarget.style.borderColor = `${DANGER}30`;
+          }
+        }}
+        onMouseLeave={(e) => {
+          if (!confirmDelete) {
+            e.currentTarget.style.color = "rgba(255,255,255,0.4)";
+            e.currentTarget.style.borderColor = "rgba(255,255,255,0.06)";
+          }
+        }}
+      >
+        <Trash2 size={13} />
+        {confirmDelete ? "Click again to confirm" : "Delete wallet"}
+      </button>
     </div>
   );
 }

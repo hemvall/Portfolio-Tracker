@@ -432,6 +432,81 @@ function categorizeFromMeta(meta: JupiterTokenMeta | null): AssetCategory {
   return "memecoin";
 }
 
+/* ─── DexScreener fallback (covers Pump.fun bonding-curve tokens) ── */
+
+interface DexScreenerInfo {
+  priceUsd: number;
+  change24h: number;
+  symbol?: string;
+  name?: string;
+}
+
+/**
+ * Batch-fetch USD price, 24h change, and metadata from DexScreener for Solana mints.
+ *
+ * Used as a fallback for tokens Jupiter doesn't price — notably Pump.fun tokens
+ * still on the bonding curve (pre-graduation to Raydium). DexScreener indexes the
+ * Pump.fun AMM pools directly so those show up here even when Jupiter returns nothing.
+ *
+ * API: https://api.dexscreener.com/latest/dex/tokens/{mints} — up to 30 addresses per request.
+ */
+async function fetchDexScreenerSolana(
+  mints: string[],
+): Promise<Record<string, DexScreenerInfo>> {
+  if (mints.length === 0) return {};
+
+  const out: Record<string, DexScreenerInfo> = {};
+  const BATCH = 30; // DexScreener allows up to 30 token addresses per request
+
+  for (let i = 0; i < mints.length; i += BATCH) {
+    const batch = mints.slice(i, i + BATCH);
+    try {
+      const url = `https://api.dexscreener.com/latest/dex/tokens/${batch.join(",")}`;
+      const res = await fetch(url, { cache: "no-store" });
+      if (!res.ok) continue;
+      const json = (await res.json()) as { pairs?: unknown[] };
+      const pairs = (json?.pairs ?? []) as Array<{
+        chainId?: string;
+        baseToken?: { address?: string; symbol?: string; name?: string };
+        priceUsd?: string;
+        priceChange?: { h24?: number | string };
+        liquidity?: { usd?: number };
+      }>;
+
+      // For each requested mint, pick the highest-liquidity Solana pair where this
+      // mint is the baseToken. Pump.fun pools show up on chainId "solana".
+      for (const mint of batch) {
+        const candidates = pairs.filter(
+          (p) => p?.chainId === "solana" && p?.baseToken?.address === mint,
+        );
+        if (candidates.length === 0) continue;
+        candidates.sort(
+          (a, b) => (b?.liquidity?.usd ?? 0) - (a?.liquidity?.usd ?? 0),
+        );
+        const best = candidates[0];
+        const priceUsd = parseFloat(best.priceUsd ?? "0");
+        if (!priceUsd || !Number.isFinite(priceUsd)) continue;
+        const rawChange = best?.priceChange?.h24;
+        const change24h =
+          typeof rawChange === "number"
+            ? rawChange
+            : parseFloat(String(rawChange ?? "0")) || 0;
+
+        out[mint] = {
+          priceUsd,
+          change24h,
+          symbol: best?.baseToken?.symbol,
+          name: best?.baseToken?.name,
+        };
+      }
+    } catch {
+      // continue with partial results
+    }
+  }
+
+  return out;
+}
+
 /* ─── Solana ─────────────────────────────────────── */
 
 const SPL_TOKEN_PROGRAM = "TokenkegQfeZyiNwAJbNbGKPFXCWuBvf9Ss623VQ5DA";
@@ -460,7 +535,11 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
   const balances: RawBalance[] = [];
 
   try {
-    // 1. Fetch native SOL + SPL tokens + Token-2022 tokens (Pump.fun uses Token-2022)
+    // 1. Fetch native SOL + SPL tokens + Token-2022 tokens.
+    //    Pump.fun mints live on the classic SPL Token Program, so the SPL fetch
+    //    already picks them up; Token-2022 is fetched to cover other tokens that
+    //    use the newer program. Pricing for Pump.fun tokens is handled below via
+    //    Jupiter (post-graduation) + DexScreener (bonding-curve phase).
     const [solResult, splResult, t22Result] = await Promise.all([
       jsonRpcWithFallback(SOLANA_RPCS, "getBalance", [address, { commitment: "confirmed" }]),
       jsonRpcWithFallback(SOLANA_RPCS, "getTokenAccountsByOwner", [
@@ -496,16 +575,33 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
     const jupiterPrices = await fetchJupiterPrices(allMints);
     console.log(`[Jupiter] Prices returned for ${Object.keys(jupiterPrices).length}/${allMints.length} mints`);
 
-    // 3. For unknown mints that have a Jupiter price, fetch metadata
-    const unknownWithPrice = mintBalances
-      .filter((m) => !mintLookup.has(m.mint) && jupiterPrices[m.mint] !== undefined)
+    // 2b. Fallback — for mints Jupiter didn't price (typically Pump.fun tokens
+    //     still on the bonding curve, pre-graduation), query DexScreener which
+    //     indexes the Pump.fun AMM pools directly and also returns symbol/name.
+    const missingMints = allMints.filter(
+      (m) => jupiterPrices[m] === undefined && m !== SOL_NATIVE_MINT,
+    );
+    const dexInfo = await fetchDexScreenerSolana(missingMints);
+    console.log(
+      `[DexScreener] Prices returned for ${Object.keys(dexInfo).length}/${missingMints.length} mints`,
+    );
+
+    // 3. For unknown mints that have a Jupiter price but no DexScreener metadata,
+    //    fall back to Jupiter's token metadata endpoint for symbol/name.
+    const unknownNeedingMeta = mintBalances
+      .filter(
+        (m) =>
+          !mintLookup.has(m.mint) &&
+          jupiterPrices[m.mint] !== undefined &&
+          !dexInfo[m.mint],
+      )
       .map((m) => m.mint);
 
     const metaResults = await Promise.allSettled(
-      unknownWithPrice.slice(0, 30).map((mint) => fetchJupiterTokenMeta(mint)),
+      unknownNeedingMeta.slice(0, 30).map((mint) => fetchJupiterTokenMeta(mint)),
     );
     const metaMap = new Map<string, JupiterTokenMeta>();
-    unknownWithPrice.slice(0, 30).forEach((mint, i) => {
+    unknownNeedingMeta.slice(0, 30).forEach((mint, i) => {
       const result = metaResults[i];
       if (result.status === "fulfilled" && result.value) {
         metaMap.set(mint, result.value);
@@ -529,6 +625,10 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
     for (const { mint, uiAmount } of mintBalances) {
       const known = mintLookup.get(mint);
       const jupPrice = jupiterPrices[mint];
+      const dex = dexInfo[mint];
+      // Prefer Jupiter when available (tighter prices for liquid tokens);
+      // fall back to DexScreener (covers Pump.fun bonding-curve tokens).
+      const resolvedPrice = jupPrice ?? dex?.priceUsd;
 
       if (known) {
         balances.push({
@@ -537,14 +637,21 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
           balance: uiAmount,
           coingeckoId: known.coingeckoId,
           category: known.category,
-          ...(jupPrice !== undefined ? { resolvedPriceUsd: jupPrice } : {}),
+          ...(resolvedPrice !== undefined ? { resolvedPriceUsd: resolvedPrice } : {}),
+          ...(dex?.change24h !== undefined ? { resolved24hChange: dex.change24h } : {}),
         });
-      } else if (jupPrice !== undefined && jupPrice > 0) {
-        // Unknown token with a Jupiter price — Pump.fun, memecoins, etc.
+      } else if (resolvedPrice !== undefined && resolvedPrice > 0) {
+        // Unknown token with a price source — Pump.fun, memecoins, etc.
         const meta = metaMap.get(mint);
-        const symbol = meta?.symbol ?? mint.slice(0, 4) + "..." + mint.slice(-4);
-        const name = meta?.name ?? "Unknown Token";
-        const category = categorizeFromMeta(meta ?? null);
+        const symbol =
+          dex?.symbol ?? meta?.symbol ?? mint.slice(0, 4) + "..." + mint.slice(-4);
+        const name = dex?.name ?? meta?.name ?? "Unknown Token";
+        // Pump.fun mints conventionally end with "pump" — force memecoin bucket
+        // when we recognise that suffix, otherwise use Jupiter tags.
+        const isPumpFun = mint.toLowerCase().endsWith("pump");
+        const category: AssetCategory = isPumpFun
+          ? "memecoin"
+          : categorizeFromMeta(meta ?? null);
 
         balances.push({
           symbol,
@@ -552,11 +659,11 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
           balance: uiAmount,
           coingeckoId: "",
           category,
-          resolvedPriceUsd: jupPrice,
-          resolved24hChange: 0,
+          resolvedPriceUsd: resolvedPrice,
+          resolved24hChange: dex?.change24h ?? 0,
         });
       }
-      // Skip tokens with no Jupiter price (dust, dead, untradeable)
+      // Skip tokens with no price from Jupiter or DexScreener (dust, dead, untradeable)
     }
 
     console.log(`[Solana] Final holdings: ${balances.length} tokens`);
@@ -569,30 +676,143 @@ async function fetchSolanaBalances(address: string): Promise<RawBalance[]> {
 
 /* ─── Bitcoin ────────────────────────────────────── */
 
+const WHITENODE_API = "https://www.whitenode.co/api";
+
+interface Brc20Balance {
+  ticker: string;
+  overall_balance: string;
+}
+
+interface Brc20TickerStats {
+  current_floor_price_satoshis_active_listings: string;
+}
+
+/**
+ * Fetch BRC-20 holdings for a Bitcoin address from WhiteNode, then resolve each
+ * ticker's floor price (in sats per token) and convert to USD using the current
+ * BTC/USD price.
+ *
+ * - Balances:  /api/brc20/addresses/{addr}/tickers-balance
+ * - Prices:    /api/market/v1/brc20/ticker/{TICKER}  → current_floor_price_satoshis_active_listings
+ *
+ * We only fetch ticker stats for tickers the address actually holds, and fail
+ * soft — any individual ticker that fails or lacks a floor price is skipped.
+ */
+async function fetchBrc20Holdings(
+  address: string,
+  btcPriceUsd: number,
+): Promise<RawBalance[]> {
+  if (btcPriceUsd <= 0) return [];
+
+  let balances: Brc20Balance[] = [];
+  try {
+    const res = await fetch(
+      `${WHITENODE_API}/brc20/addresses/${address}/tickers-balance`,
+      { cache: "no-store" },
+    );
+    if (!res.ok) return [];
+    const json = (await res.json()) as Brc20Balance[] | { data?: Brc20Balance[] };
+    balances = Array.isArray(json) ? json : json?.data ?? [];
+  } catch (err) {
+    console.error("BRC-20 balance fetch error:", err);
+    return [];
+  }
+
+  if (balances.length === 0) return [];
+
+  // Fetch floor prices in parallel — fail soft per ticker.
+  const priceResults = await Promise.allSettled(
+    balances.map(async (b) => {
+      const res = await fetch(
+        `${WHITENODE_API}/market/v1/brc20/ticker/${encodeURIComponent(b.ticker)}`,
+        { cache: "no-store" },
+      );
+      if (!res.ok) throw new Error(`Ticker ${b.ticker}: HTTP ${res.status}`);
+      const json = (await res.json()) as { data?: Brc20TickerStats };
+      const floorSats = parseFloat(
+        json?.data?.current_floor_price_satoshis_active_listings ?? "0",
+      );
+      return floorSats;
+    }),
+  );
+
+  const out: RawBalance[] = [];
+  for (let i = 0; i < balances.length; i++) {
+    const b = balances[i];
+    const amount = parseFloat(b.overall_balance ?? "0");
+    if (!Number.isFinite(amount) || amount <= 0) continue;
+
+    const result = priceResults[i];
+    if (result.status !== "fulfilled") continue;
+    const floorSats = result.value;
+    if (!Number.isFinite(floorSats) || floorSats <= 0) continue;
+
+    // floor price is sats per whole token → convert to USD per token
+    const tokenPriceUsd = (floorSats / 1e8) * btcPriceUsd;
+    if (tokenPriceUsd <= 0) continue;
+
+    out.push({
+      symbol: b.ticker.toUpperCase(),
+      name: `${b.ticker.toUpperCase()} (BRC-20)`,
+      balance: amount,
+      coingeckoId: "",
+      category: "memecoin",
+      resolvedPriceUsd: tokenPriceUsd,
+      resolved24hChange: 0,
+    });
+  }
+
+  console.log(`[BRC-20] ${address.slice(0, 8)}... → ${out.length} priced tickers`);
+  return out;
+}
+
 async function fetchBitcoinBalance(address: string): Promise<RawBalance[]> {
+  const out: RawBalance[] = [];
+
+  // 1. Native BTC balance from Blockstream
+  let btcAmount = 0;
   try {
     const res = await fetch(`https://blockstream.info/api/address/${address}`);
-    if (!res.ok) return [];
-
-    const data = await res.json();
-    const funded = (data.chain_stats?.funded_txo_sum ?? 0) + (data.mempool_stats?.funded_txo_sum ?? 0);
-    const spent = (data.chain_stats?.spent_txo_sum ?? 0) + (data.mempool_stats?.spent_txo_sum ?? 0);
-    const satoshis = funded - spent;
-    const btc = satoshis / 1e8;
-
-    if (btc > 0) {
-      return [{
-        symbol: "BTC",
-        name: "Bitcoin",
-        balance: btc,
-        coingeckoId: "bitcoin",
-        category: "blue-chip",
-      }];
+    if (res.ok) {
+      const data = await res.json();
+      const funded =
+        (data.chain_stats?.funded_txo_sum ?? 0) +
+        (data.mempool_stats?.funded_txo_sum ?? 0);
+      const spent =
+        (data.chain_stats?.spent_txo_sum ?? 0) +
+        (data.mempool_stats?.spent_txo_sum ?? 0);
+      const satoshis = funded - spent;
+      btcAmount = satoshis / 1e8;
     }
   } catch (err) {
     console.error("Bitcoin fetch error:", err);
   }
-  return [];
+
+  // 2. Fetch BTC spot price once — needed both for native BTC (if present)
+  //    and to convert BRC-20 floor prices from sats → USD. We pre-resolve it
+  //    so the BRC-20 entries have `resolvedPriceUsd` set and skip CoinGecko.
+  const btcPrices = await fetchPrices(["bitcoin"]);
+  const btcPriceUsd = btcPrices["bitcoin"]?.usd ?? 0;
+
+  if (btcAmount > 0) {
+    out.push({
+      symbol: "BTC",
+      name: "Bitcoin",
+      balance: btcAmount,
+      coingeckoId: "bitcoin",
+      category: "blue-chip",
+      ...(btcPriceUsd > 0 ? { resolvedPriceUsd: btcPriceUsd } : {}),
+      ...(btcPrices["bitcoin"]?.usd_24h_change != null
+        ? { resolved24hChange: btcPrices["bitcoin"].usd_24h_change }
+        : {}),
+    });
+  }
+
+  // 3. BRC-20 holdings via WhiteNode (priced in sats, converted to USD here)
+  const brc20 = await fetchBrc20Holdings(address, btcPriceUsd);
+  out.push(...brc20);
+
+  return out;
 }
 
 /* ─── Tron ───────────────────────────────────────── */

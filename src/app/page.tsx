@@ -2,8 +2,9 @@
 
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Blockchain, BLOCKCHAIN_OPTIONS } from "@/lib/types";
+import { Blockchain } from "@/lib/types";
 import { useVillageStore } from "@/lib/store";
+import { ChainDropdown } from "@/components/ChainDropdown";
 
 export default function LandingPage() {
   const [wallet, setWallet] = useState("");
@@ -178,25 +179,7 @@ export default function LandingPage() {
             >
               BLOCKCHAIN
             </div>
-            <select
-              value={blockchain}
-              onChange={(e) => setBlockchain(e.target.value as Blockchain)}
-              className="glow-input w-full"
-              style={{
-                padding: "12px 14px",
-                fontSize: 13,
-                appearance: "none",
-                backgroundImage: `url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' fill='rgba(255,255,255,0.3)' viewBox='0 0 16 16'%3E%3Cpath d='M8 11L3 6h10z'/%3E%3C/svg%3E")`,
-                backgroundRepeat: "no-repeat",
-                backgroundPosition: "right 14px center",
-              }}
-            >
-              {BLOCKCHAIN_OPTIONS.map((opt) => (
-                <option key={opt.value} value={opt.value}>
-                  {opt.icon} {opt.label}
-                </option>
-              ))}
-            </select>
+            <ChainDropdown value={blockchain} onChange={setBlockchain} />
           </div>
 
           {/* Wallet address */}
