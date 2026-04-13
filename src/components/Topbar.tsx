@@ -430,7 +430,7 @@ export function Topbar() {
                   justifyContent: "center",
                 }}
               >
-                <Wallet size={16} style={{ color: ACCENT }} />
+                <img src="../assets/logo.png" alt="Logo" style={{ width: 16, height: 16 }} />
               </div>
               <div>
                 <div
