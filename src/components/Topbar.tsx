@@ -18,6 +18,8 @@ import {
   Plus,
 } from "lucide-react";
 import { AddWalletModal } from "@/components/AddWalletModal";
+import logo from "@/assets/logo.png";
+
 
 const ACCENT = "#A882FF";
 const ACCENT_DIM = "rgba(168,130,255,0.";
@@ -430,7 +432,7 @@ export function Topbar() {
                   justifyContent: "center",
                 }}
               >
-                <img src="../assets/logo.png" alt="Logo" style={{ width: 16, height: 16 }} />
+              <img src={logo.src} alt="Logo" style={{ width: 74, height: 74 }} />
               </div>
               <div>
                 <div
